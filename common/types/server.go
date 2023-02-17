@@ -5,7 +5,8 @@ const (
 )
 
 type Session struct {
-	User User
+	User  User
+	Props SM
 }
 
 func (s *Session) IsAnonymous() bool {

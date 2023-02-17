@@ -19,6 +19,7 @@ export default {
       drives: 'Drives',
       extra_drives: 'Extra Drives',
       jobs: 'Jobs',
+      path_meta: 'Path Attrs',
       misc: 'Misc',
       statistics: 'Statistics',
     },

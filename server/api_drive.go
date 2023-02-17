@@ -41,7 +41,8 @@ func InitDriveRoutes(
 	runner task.Runner,
 	tokenStore types.TokenStore,
 	userDAO *storage.UserDAO,
-	optionsDAO *storage.OptionsDAO) error {
+	optionsDAO *storage.OptionsDAO,
+	pathMetaDAO *storage.PathMetaDAO) error {
 
 	dr := driveRoute{
 		config:        config,
@@ -52,6 +53,7 @@ func InitDriveRoutes(
 		runner:        runner,
 		signer:        signer,
 		options:       optionsDAO,
+		pathMeta:      pathMetaDAO,
 	}
 
 	scriptsDir, _ := config.GetDir(config.DriveUploadersDir, false)
@@ -74,6 +76,10 @@ func InitDriveRoutes(
 
 	// list entries/drives
 	router.GET("/entries/*path", SignatureAuth(signer, userDAO, true), tokenAuth, dr.list)
+
+	// set path password
+	r.POST("/password/*path", dr.setPathPassword)
+
 	// get entry info
 	r.GET("/entry/*path", dr.get)
 	// mkdir
@@ -113,12 +119,35 @@ type driveRoute struct {
 	runner        task.Runner
 	signer        *utils.Signer
 
-	options *storage.OptionsDAO
+	options  *storage.OptionsDAO
+	pathMeta *storage.PathMetaDAO
 }
 
 func (dr *driveRoute) getDrive(c *gin.Context) (types.IDrive, error) {
 	session := GetSession(c)
 	return dr.access.GetDrive(session)
+}
+
+func (dr *driveRoute) setPathPassword(c *gin.Context) {
+	path := utils.CleanPath(c.Param("path"))
+	data := &setPassword{}
+	if e := c.Bind(&data); e != nil {
+		_ = c.Error(e)
+		return
+	}
+	meta, e := dr.pathMeta.Gets(path)
+	if e != nil {
+		_ = c.Error(e)
+		return
+	}
+	mergedMeta := utils.MergePathMeta(path, meta)
+	if mergedMeta == nil || mergedMeta.Password.V == "" {
+		_ = c.Error(err.NewNotAllowedError())
+		return
+	}
+	session := GetSession(c)
+	session.Props["password:"+mergedMeta.Password.Path] = data.Password
+	// UpdateSessionUser(c, dr.)
 }
 
 func (dr *driveRoute) list(c *gin.Context) {
@@ -647,4 +676,8 @@ type uploadConfig struct {
 	Provider string      `json:"provider"`
 	Path     string      `json:"path,omitempty"`
 	Config   interface{} `json:"config"`
+}
+
+type setPassword struct {
+	Password string `json:"password"`
 }

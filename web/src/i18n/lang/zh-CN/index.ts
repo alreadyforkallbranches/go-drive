@@ -19,6 +19,7 @@ export default {
       drives: '盘',
       extra_drives: '其他盘',
       jobs: '任务',
+      path_meta: '路径属性',
       misc: '其他',
       statistics: '状态',
     },
